@@ -1,1 +1,1 @@
-# yocto_project_tegra
+README
