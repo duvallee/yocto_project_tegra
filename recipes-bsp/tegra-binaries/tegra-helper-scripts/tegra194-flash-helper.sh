@@ -1,14 +1,15 @@
 #!/bin/bash
-bup_build=
+bup_blob=0
 keyfile=
 sbk_keyfile=
 sdcard=
 no_flash=0
 flash_cmd=
 imgfile=
+dataimg=
 blocksize=4096
 
-ARGS=$(getopt -n $(basename "$0") -l "bup,no-flash,sdcard" -o "u:v:s:b:B:y" -- "$@")
+ARGS=$(getopt -n $(basename "$0") -l "bup,no-flash,sdcard,datafile:" -o "u:v:s:b:B:yc:" -- "$@")
 if [ $? -ne 0 ]; then
     echo "Error parsing options" >&2
     exit 1
@@ -19,7 +20,7 @@ unset ARGS
 while true; do
     case "$1" in
 	--bup)
-	    bup_build=yes
+	    bup_blob=1
 	    shift
 	    ;;
 	--no-flash)
@@ -29,6 +30,10 @@ while true; do
 	--sdcard)
 	    sdcard=yes
 	    shift
+	    ;;
+	--datafile)
+	    dataimg="$2"
+	    shift 2
 	    ;;
 	-u)
 	    keyfile="$2"
@@ -229,16 +234,25 @@ bytes=`cksum ${MACHINE}_bootblob_ver.txt | cut -d' ' -f2`
 cksum=`cksum ${MACHINE}_bootblob_ver.txt | cut -d' ' -f1`
 echo "BYTES:$bytes CRC32:$cksum" >>${MACHINE}_bootblob_ver.txt
 if [ -z "$sdcard" ]; then
-    appfile=$(echo $(basename "$imgfile") | cut -d. -f1).img
+    appfile=$(basename "$imgfile").img
+    if [ -n "$dataimg" ]; then
+	datafile=$(basename "$dataimg").img
+    fi
 else
     appfile="$imgfile"
+    datafile="$dataimg"
 fi
 appfile_sed=
-if [ "$bup_build" = "yes" ]; then
-    appfile_sed="-e/APPFILE/d"
-elif [ $no_flash -eq 0 ]; then
-    appfile_sed="-es,APPFILE,$appfile,"
+if [ $bup_blob -ne 0 ]; then
+    appfile_sed="-e/APPFILE/d -e/DATAFILE/d"
+elif [ $no_flash -eq 0 -a -z "$sdcard" ]; then
+    appfile_sed="-es,APPFILE,$appfile, -es,DATAFILE,$datafile,"
 else
+    pre_sdcard_sed="-es,APPFILE,$appfile,"
+    if [ -n "$datafile" ]; then
+	pre_sdcard_sed="$pre_sdcard_sed -es,DATAFILE,$datafile,"
+	touch DATAFILE
+    fi
     touch APPFILE
 fi
 sed -e"s,VERFILE,${MACHINE}_bootblob_ver.txt," -e"s,BPFDTB_FILE,$BPFDTB_FILE," $appfile_sed "$flash_in" > flash.xml
@@ -274,44 +288,50 @@ bctargs="$bctargs \
 	      --br_cmd_config $BR_CMD_CONFIG \
 	      --dev_params $DEV_PARAMS"
 
-if [ "$bup_build" = "yes" -o "$sdcard" = "yes" ]; then
+
+if [ $bup_blob -ne 0 -o "$sdcard" = "yes" ]; then
     tfcmd=sign
     skipuid="--skipuid"
 else
     if [ -z "$sdcard" -a $no_flash -eq 0 ]; then
 	rm -f "$appfile"
-	$here/mksparse -b ${blocksize} -v --fillpattern=0 "$imgfile" "$appfile" || exit 1
-    fi
-    if [ -n "$keyfile" ]; then
-	CHIPID="0x19"
-	tegraid="$CHIPID"
-	localcfgfile="flash.xml"
-	dtbfilename="$dtb_file"
-	tbcdtbfilename="$dtb_file"
-	bpfdtbfilename="$BPFDTB_FILE"
-	localbootfile="$kernfile"
-	BINSARGS="--bins \"$BINSARGS\""
-	flashername=nvtboot_recovery_cpu_t194.bin
-	BCT="--sdram_config"
-	bctfilename=`echo $sdramcfg_files | cut -d, -f1`
-	bctfile1name=`echo $sdramcfg_files | cut -d, -f2`
-	SOSARGS="--applet mb1_t194_prod.bin "
-	BCTARGS="$bctargs"
-	. "$here/odmsign.func"
-	(odmsign_ext) || exit 1
-	if [ $no_flash -ne 0 ]; then
-	    if [ -f flashcmd.txt ]; then
-		chmod +x flashcmd.txt
-		ln -sf flashcmd.txt ./secureflash.sh
-	    else
-		echo "WARN: signing completed successfully, but flashcmd.txt missing" >&2
-	    fi
-	    rm APPFILE
+	$here/mksparse -b ${blocksize} --fillpattern=0 "$imgfile" "$appfile" || exit 1
+	if [ -n "$datafile" ]; then
+	    rm -f "$datafile"
+	    $here/mksparse -b ${blocksize} --fillpattern=0 "$dataimg" "$datafile" || exit 1
 	fi
-	exit 0
-    else
-	tfcmd=${flash_cmd:-"flash;reboot"}
     fi
+    tfcmd=${flash_cmd:-"flash;reboot"}
+fi
+
+if [ -n "$keyfile" ]; then
+    CHIPID="0x19"
+    tegraid="$CHIPID"
+    localcfgfile="flash.xml"
+    dtbfilename="$dtb_file"
+    tbcdtbfilename="$dtb_file"
+    bpfdtbfilename="$BPFDTB_FILE"
+    localbootfile="$kernfile"
+    BINSARGS="--bins \"$BINSARGS\""
+    flashername=nvtboot_recovery_cpu_t194.bin
+    BCT="--sdram_config"
+    bctfilename=`echo $sdramcfg_files | cut -d, -f1`
+    bctfile1name=`echo $sdramcfg_files | cut -d, -f2`
+    SOSARGS="--applet mb1_t194_prod.bin "
+    BCTARGS="$bctargs"
+    . "$here/odmsign.func"
+    (odmsign_ext) || exit 1
+    if [ $no_flash -ne 0 ]; then
+	if [ -f flashcmd.txt ]; then
+	    chmod +x flashcmd.txt
+	    ln -sf flashcmd.txt ./secureflash.sh
+	else
+	    echo "WARN: signing completed successfully, but flashcmd.txt missing" >&2
+	fi
+	rm -f APPFILE DATAFILE
+    fi
+    [ $bup_blob -ne 0 ] || exit 0
+    touch odmsign.func
 fi
 
 flashcmd="python3 $flashappname --chip 0x19 --bl nvtboot_recovery_cpu_t194.bin \
@@ -324,7 +344,7 @@ flashcmd="python3 $flashappname --chip 0x19 --bl nvtboot_recovery_cpu_t194.bin \
 	      $bctargs \
 	      --bins \"$BINSARGS\""
 
-if [ "$bup_build" = "yes" ]; then
+if [ $bup_blob -ne 0 ]; then
     [ -z "$keyfile" ] || flashcmd="${flashcmd} --key \"$keyfile\""
     [ -z "$sbk_keyfile" ] || flashcmd="${flashcmd} --encrypt_key \"$sbk_keyfile\""
     support_multi_spec=1
@@ -335,10 +355,15 @@ if [ "$bup_build" = "yes" ]; then
     localbootfile="boot.img"
     . "$here/l4t_bup_gen.func"
     spec="${BOARDID}-${FAB}-${BOARDSKU}-${BOARDREV}-1-${CHIPREV}-${MACHINE}-${BOOTDEV}"
-    l4t_bup_gen "$flashcmd" "$spec" "$fuselevel" t186ref "$keyfile" 0x19 || exit 1
+    l4t_bup_gen "$flashcmd" "$spec" "$fuselevel" t186ref "$keyfile" "$sbk_keyfile" 0x19 || exit 1
 else
     eval $flashcmd || exit 1
     if [ -n "$sdcard" ]; then
+	if [ -n "$pre_sdcard_sed" ]; then
+	    rm -f signed/flash.xml.tmp.in
+	    mv signed/flash.xml.tmp signed/flash.xml.tmp.in
+	    sed $pre_sdcard_sed  signed/flash.xml.tmp.in > signed/flash.xml.tmp
+	fi
 	$here/make-sdcard $make_sdcard_args signed/flash.xml.tmp "$@"
     fi
 fi

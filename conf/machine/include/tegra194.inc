@@ -10,6 +10,7 @@ KERNEL_IMAGETYPE = "Image"
 INITRAMFS_IMAGE ?= "tegra-minimal-initramfs"
 INITRAMFS_IMAGE_BUNDLE ?= "1"
 IMAGE_UBOOT ?= ""
+INITRAMFS_FSTYPES_append = "${@'' if d.getVar('INITRAMFS_IMAGE_BUNDLE') == '1' else ' cpio.gz.cboot cpio.gz.cboot.bup-payload'}"
 
 TEGRA_AUDIO_DEVICE ?= "tegrahdat194ref"
 
@@ -40,7 +41,7 @@ PREFERRED_PROVIDER_tos-trusty ?= "tos-prebuilt"
 require conf/machine/include/tegra-common.inc
 
 L4T_BSP_NAME = "t186ref_release_aarch64"
-L4T_SRCS_NAME = "Sources/T186"
+L4T_SRCS_NAME = "sources/T186"
 L4T_BSP_PREFIX = "Tegra186"
 L4T_DEB_SOCNAME = "t194"
 

@@ -1,12 +1,13 @@
 #!/bin/bash
-bup_build=
+bup_blob=0
 keyfile=
 sbk_keyfile=
 no_flash=0
 flash_cmd=
 imgfile=
+dataimg=
 
-ARGS=$(getopt -n $(basename "$0") -l "bup,no-flash" -o "u:v:" -- "$@")
+ARGS=$(getopt -n $(basename "$0") -l "bup,no-flash,datafile:" -o "u:v:c:" -- "$@")
 if [ $? -ne 0 ]; then
     echo "Error parsing options" >&2
     exit 1
@@ -17,12 +18,16 @@ unset ARGS
 while true; do
     case "$1" in
 	--bup)
-	    bup_build=yes
+	    bup_blob=1
 	    shift
 	    ;;
 	--no-flash)
 	    no_flash=1
 	    shift
+	    ;;
+	--datafile)
+	    dataimg="$2"
+	    shift 2
 	    ;;
 	-u)
 	    keyfile="$2"
@@ -157,17 +162,18 @@ bytes=`cksum ${MACHINE}_bootblob_ver.txt | cut -d' ' -f2`
 cksum=`cksum ${MACHINE}_bootblob_ver.txt | cut -d' ' -f1`
 echo "BYTES:$bytes CRC32:$cksum" >>${MACHINE}_bootblob_ver.txt
 appfile_sed=
-if [ "$bup_build" = "yes" ]; then
-    appfile_sed="-e/APPFILE/d"
+if [ $bup_blob -ne 0 ]; then
+    appfile_sed="-e/APPFILE/d -e/DATAFILE/d"
 elif [ $no_flash -eq 0 ]; then
     if [ -n "$imgfile" -a -e "$imgfile" ]; then
-	appfile_sed="-es,APPFILE,$imgfile,"
+	appfile_sed="-es,APPFILE,$imgfile, -es,DATAFILE,$dataimg,"
     else
 	echo "ERR: rootfs image not specified or missing: $imgfile" >&2
 	exit 1
     fi
 else
     touch APPFILE
+    [ -z "$dataimg" ] || touch DATAFILE
 fi
 sed -e"s,VERFILE,${MACHINE}_bootblob_ver.txt," -e"s,BPFDTB-FILE,$BPFDTB_FILE," $appfile_sed "$flash_in" > flash.xml
 
@@ -192,10 +198,7 @@ bctargs="--misc_config $MISC_CONFIG \
 	      --br_cmd_config $BOOTROM_CONFIG \
 	      --dev_params $DEV_PARAMS"
 skipuid=""
-if [ "$bup_build" = "yes" ]; then
-    tfcmd=sign
-    skipuid="--skipuid"
-elif [ -n "$keyfile" ]; then
+if [ -n "$keyfile" ]; then
     CHIPID="0x18"
     tegraid="$CHIPID"
     localcfgfile="flash.xml"
@@ -218,9 +221,15 @@ elif [ -n "$keyfile" ]; then
 	else
 	    echo "WARN: signing completed successfully, but flashcmd.txt missing" >&2
 	fi
-	rm APPFILE
+	rm -f APPFILE DATAFILE
     fi
-    exit 0
+    [ $bup_blob -ne 0 ] || exit 0
+    touch odmsign.func
+fi
+
+if [ $bup_blob -ne 0 ]; then
+    tfcmd=sign
+    skipuid="--skipuid"
 else
     tfcmd=${flash_cmd:-"flash;reboot"}
 fi
@@ -233,7 +242,7 @@ flashcmd="python3 $flashappname --chip 0x18 --bl nvtboot_recovery_cpu.bin \
 	      $bctargs \
 	      --bins \"$BINSARGS\""
 
-if [ "$bup_build" = "yes" ]; then
+if [ $bup_blob -ne 0 ]; then
     [ -z "$keyfile" ] || flashcmd="${flashcmd} --key \"$keyfile\""
     [ -z "$sbk_keyfile" ] || flashcmd="${flashcmd} --encrypt_key \"$sbk_keyfile\""
     support_multi_spec=1
@@ -244,7 +253,7 @@ if [ "$bup_build" = "yes" ]; then
     localbootfile="boot.img"
     . "$here/l4t_bup_gen.func"
     spec="${BOARDID}-${FAB}-${BOARDSKU}--1-0-${MACHINE}-${BOOTDEV}"
-    l4t_bup_gen "$flashcmd" "$spec" "$fuselevel" t186ref "$keyfile" 0x18 || exit 1
+    l4t_bup_gen "$flashcmd" "$spec" "$fuselevel" t186ref "$keyfile" "$sbk_keyfile" 0x18 || exit 1
 else
     eval $flashcmd || exit 1
 fi

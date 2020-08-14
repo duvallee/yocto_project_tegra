@@ -14,6 +14,7 @@ INITRAMFS_IMAGE ?= "tegra-minimal-initramfs"
 TEGRA_INITRAMFS_INITRD ?= "${@'' if d.getVar('PREFERRED_PROVIDER_virtual/bootloader').startswith('cboot') else '1'}"
 INITRAMFS_IMAGE_BUNDLE ?= "${@'1' if d.getVar('PREFERRED_PROVIDER_virtual/bootloader').startswith('cboot') else ''}"
 IMAGE_UBOOT ?= "${@'' if d.getVar('PREFERRED_PROVIDER_virtual/bootloader').startswith('cboot') else 'u-boot'}"
+INITRAMFS_FSTYPES_append = "${@'' if not (d.getVar('PREFERRED_PROVIDER_virtual/bootloader').startswith('cboot') and d.getVar('INITRAMFS_IMAGE_BUNDLE') != '1') else ' cpio.gz.cboot cpio.gz.cboot.bup-payload'}"
 
 TEGRA_AUDIO_DEVICE ?= "tegrahda"
 
@@ -30,7 +31,7 @@ PREFERRED_PROVIDER_tos-trusty ?= "tos-prebuilt"
 require conf/machine/include/tegra-common.inc
 
 L4T_BSP_NAME = "t186ref_release_aarch64"
-L4T_SRCS_NAME = "Sources/T186"
+L4T_SRCS_NAME = "sources/T186"
 L4T_BSP_PREFIX = "Tegra186"
 L4T_DEB_SOCNAME = "t186"
 

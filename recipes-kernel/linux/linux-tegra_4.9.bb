@@ -11,11 +11,11 @@ LINUX_VERSION ?= "4.9.140"
 PV = "${LINUX_VERSION}+git${SRCPV}"
 FILESEXTRAPATHS_prepend := "${THISDIR}/${BPN}-${@bb.parse.BBHandler.vars_from_file(d.getVar('FILE', False),d)[1]}:"
 
-LINUX_VERSION_EXTENSION ?= "-l4t-r${L4T_VERSION}"
+LINUX_VERSION_EXTENSION ?= "-l4t-r${@'.'.join(d.getVar('L4T_VERSION').split('.')[:2])}"
 SCMVERSION ??= "y"
 
 SRCBRANCH = "patches${LINUX_VERSION_EXTENSION}"
-SRCREV = "e3c8d3e9030a4a9dbe6171355a062ebfad28dfde"
+SRCREV = "0be1a57448010ae60505acf4e2153638455cee7c"
 KBRANCH = "${SRCBRANCH}"
 SRC_REPO = "github.com/madisongh/linux-tegra-4.9"
 KERNEL_REPO = "${SRC_REPO}"
@@ -60,11 +60,29 @@ do_deploy_append_tegra194() {
     bootimg_from_bundled_initramfs
 }
 
-EXTRADEPLOYDEPS = ""
-EXTRADEPLOYDEPS_tegra186 = "tegra186-flashtools-native:do_populate_sysroot"
-EXTRADEPLOYDEPS_tegra194 = "tegra186-flashtools-native:do_populate_sysroot"
+EXTRADEPLOYDEPS = "gzip-native:do_populate_sysroot"
+EXTRADEPLOYDEPS_append_tegra186 = " tegra186-flashtools-native:do_populate_sysroot"
+EXTRADEPLOYDEPS_append_tegra194 = " tegra186-flashtools-native:do_populate_sysroot"
 do_deploy[depends] += "${EXTRADEPLOYDEPS}"
 
 COMPATIBLE_MACHINE = "(tegra)"
 
 RDEPENDS_${KERNEL_PACKAGE_NAME}-base = "${@'' if d.getVar('PREFERRED_PROVIDER_virtual/bootloader').startswith('cboot') else '${KERNEL_PACKAGE_NAME}-image'}"
+
+# kernel.bbclass automatically adds a dependency on the intramfs image
+# even if INITRAMFS_IMAGE_BUNDLE is disabled.  This creates a circular
+# dependency for tegra builds, where we need to combine initramfs (as an
+# initrd) and kernel artifacts into a bootable image, so break that
+# dependency here.
+python () {
+    image = d.getVar('INITRAMFS_IMAGE')
+    if image and not bb.utils.to_boolean(d.getVar('INITRAMFS_IMAGE_BUNDLE')):
+        flags = d.getVarFlag('do_bundle_initramfs', 'depends', False).split()
+        try:
+            i = flags.index('${INITRAMFS_IMAGE}:do_image_complete')
+            del flags[i]
+            d.setVarFlag('do_bundle_initramfs', 'depends', ' '.join(flags))
+        except ValueError:
+            bb.warn('did not find it in %s' % ','.join(flags))
+            pass
+}

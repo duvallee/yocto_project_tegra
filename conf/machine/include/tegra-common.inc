@@ -1,6 +1,7 @@
 MACHINEOVERRIDES =. "cuda:tegra:"
 SOC_FAMILY_PKGARCH = "${ARMPKGARCH}${ARMPKGSFX_DSP}${ARMPKGSFX_EABI}${ARMPKGSFX_ENDIAN}${ARMPKGSFX_FPU}_${SOC_FAMILY}"
-PACKAGE_EXTRA_ARCHS_append = " ${SOC_FAMILY_PKGARCH}"
+TEGRA_PKGARCH = "${ARMPKGARCH}${ARMPKGSFX_DSP}${ARMPKGSFX_EABI}${ARMPKGSFX_ENDIAN}${ARMPKGSFX_FPU}_tegra"
+PACKAGE_EXTRA_ARCHS_append = " ${TEGRA_PKGARCH} ${SOC_FAMILY_PKGARCH}"
 
 KERNEL_ROOTSPEC ?= "root=/dev/mmcblk${devnum}p${distro_bootpart} rw rootwait"
 KERNEL_ARGS ??= ""
@@ -46,9 +47,8 @@ PREFERRED_PROVIDER_virtual/xserver = "xserver-xorg"
 XSERVER = "xserver-xorg xf86-input-evdev xserver-xorg-video-nvidia xserver-xorg-module-libwfb"
 
 CUDA_VERSION ?= "10.2"
-PREFERRED_VERSION_cuda-binaries-native = "${CUDA_VERSION}%"
-PREFERRED_VERSION_cuda-shared-binaries-native = "${CUDA_VERSION}%"
-PREFERRED_VERSION_cuda-binaries-native = "${CUDA_VERSION}%"
-PREFERRED_VERSION_cuda-toolkit-native = "${CUDA_VERSION}%"
 # Tegra specific version of libnvidia-container
 PREFERRED_VERSION_libnvidia-container-tools = "0.9.0"
+
+L4T_BSP_ARCH = "tegra"
+L4T_BSP_PKGARCH = "${TEGRA_PKGARCH}"
