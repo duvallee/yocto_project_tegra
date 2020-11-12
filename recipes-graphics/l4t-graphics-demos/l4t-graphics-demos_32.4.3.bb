@@ -1,23 +1,8 @@
-require recipes-bsp/tegra-binaries/tegra-binaries-${PV}.inc
-require recipes-bsp/tegra-binaries/tegra-shared-binaries.inc
-
-SRC_PKG_PATH  := "${S}/nv_tegra"
-SRC_PKG_PATH[vardepvalue] = ""
-S = "${WORKDIR}/graphics_demos"
-B = "${S}"
+require l4t-graphics-demos.inc
 
 LICENSE = "MIT & Proprietary"
 LIC_FILES_CHKSUM = "file://README;endline=21;md5=9344f9b3e882bebae9422f515711d756 \
                     file://gears-cube/Makefile;endline=8;md5=a2d67caf4241d62192371ef03b193fea"
-
-do_unpack_from_tarfile() {
-    tar -C ${WORKDIR} -x --strip-components=3 --exclude "*/include/*" -f ${SRC_PKG_PATH}/graphics_demos.tbz2
-}
-do_unpack_from_tarfile[dirs] = "${WORKDIR}"
-do_unpack_from_tarfile[cleandirs] = "${S}"
-do_unpack_from_tarfile[depends] += "tegra-binaries:do_preconfigure"
-
-addtask unpack_from_tarfile before do_configure do_populate_lic
 
 REQUIRED_DISTRO_FEATURES = "opengl"
 
@@ -46,15 +31,15 @@ do_compile() {
 	ldflags="-ldl"
         case $winsys in
 	    egldevice)
-	        cflags="$cflags `pkg-config --cflags libdrm`"
+	        cflags="$cflags -DEGL_NO_X11 `pkg-config --cflags libdrm`"
 		ldflags="$ldflags `pkg-config --libs libdrm`"
 		;;
             x11)
-	        cflags="$cflags `pkg-config --cflags x11`"
+	        cflags="$cflags -DX11 `pkg-config --cflags x11`"
                 ldflags="$ldflags `pkg-config --libs x11`"
 		;;
 	    wayland)
-	        cflags="$cflags `pkg-config --cflags xkbcommon wayland-client wayland-egl libffi`"
+	        cflags="$cflags -DEGL_NO_X11 -DWAYLAND `pkg-config --cflags xkbcommon wayland-client wayland-egl libffi`"
 		ldflags="$ldflags `pkg-config --libs xkbcommon wayland-client wayland-egl libffi`"
 		;;
 	esac
@@ -81,4 +66,5 @@ FILES_${PN}-x11 = "${bindir}/${BPN}/x11"
 FILES_${PN}-wayland = "${bindir}/${BPN}/wayland"
 FILES_${PN}-egldevice = "${bindir}/${BPN}/egldevice"
 ALLOW_EMPTY_${PN} = "1"
+RDEPENDS_${PN}-egldevice = "libdrm"
 RDEPENDS_${PN} = "${PN}-egldevice ${@' '.join(['${PN}-%s' % p for p in d.getVar('PACKAGECONFIG').split()])}"

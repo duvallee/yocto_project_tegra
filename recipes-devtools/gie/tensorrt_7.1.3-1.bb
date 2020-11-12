@@ -1,8 +1,9 @@
 DESCRIPTION = "NVIDIA TensorRT (GPU Inference Engine) for deep learning"
-HOMEPAGE = "http://developer.nvidia.com/tensorrt"
 LICENSE = "Proprietary"
 
 inherit l4t_deb_pkgfeed container-runtime-csv
+
+HOMEPAGE = "http://developer.nvidia.com/tensorrt"
 
 PREFIX = "NoDLA-"
 PREFIX_tegra194 = "DLA-"
@@ -58,6 +59,9 @@ COMPATIBLE_MACHINE = "(tegra)"
 LIC_FILES_CHKSUM = "file://usr/include/aarch64-linux-gnu/NvInfer.h;endline=48;md5=59218f2f10ab9e4132dda76c59e80fa1"
 
 S = "${WORKDIR}/tensorrt"
+
+DEPENDS = "libcublas cudnn cuda-cudart cuda-nvrtc libglvnd"
+DEPENDS_append_tegra194 = " tegra-libraries"
 
 CONTAINER_CSV_FILES = "${libdir}/*.so* /usr/src/*"
 

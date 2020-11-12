@@ -4,6 +4,8 @@ LIC_FILES_CHKSUM = "file://usr/share/doc/${BPN}/copyright;md5=55bbad78645f106829
 
 inherit l4t_deb_pkgfeed container-runtime-csv
 
+HOMEPAGE = "https://developer.nvidia.com/embedded/visionworks"
+
 SRC_COMMON_DEBS = "\
     libvisionworks_${PV}_arm64.deb;subdir=${BPN};name=lib \
     libvisionworks-dev_${PV}_all.deb;subdir=${BPN};name=dev \
@@ -35,6 +37,11 @@ INHIBIT_PACKAGE_STRIP = "1"
 INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
 INHIBIT_SYSROOT_STRIP = "1"
 
+PACKAGES =+ "${PN}-devso-symlink"
+FILES_${PN}-devso-symlink = "${libdir}/libvisionworks${SOLIBSDEV}"
 FILES_${PN}-dev += "${datadir}/visionworks"
+RDEPENDS_${PN}-devso-symlink = "${PN}"
+INSANE_SKIP_${PN}-devso-symlink = "dev-so"
+RDEPENDS_${PN}-dev += "${PN}-devso-symlink"
 RDEPENDS_${PN} = "libstdc++"
 PACKAGE_ARCH = "${TEGRA_PKGARCH}"

@@ -15,12 +15,13 @@ LINUX_VERSION_EXTENSION ?= "-l4t-r${@'.'.join(d.getVar('L4T_VERSION').split('.')
 SCMVERSION ??= "y"
 
 SRCBRANCH = "patches${LINUX_VERSION_EXTENSION}"
-SRCREV = "0be1a57448010ae60505acf4e2153638455cee7c"
+SRCREV = "3924d6fccfbf4757b40adf3e06628d566681b011"
 KBRANCH = "${SRCBRANCH}"
-SRC_REPO = "github.com/madisongh/linux-tegra-4.9"
+SRC_REPO = "github.com/OE4T/linux-tegra-4.9"
 KERNEL_REPO = "${SRC_REPO}"
 SRC_URI = "git://${KERNEL_REPO};name=machine;branch=${KBRANCH} \
-	   ${@'file://localversion_auto.cfg' if d.getVar('SCMVERSION') == 'y' else ''} \
+           ${@'file://localversion_auto.cfg' if d.getVar('SCMVERSION') == 'y' else ''} \
+           ${@bb.utils.contains('DISTRO_FEATURES', 'systemd', 'file://systemd.cfg', '', d)} \
 "
 
 KBUILD_DEFCONFIG = "tegra_defconfig"
@@ -37,20 +38,20 @@ do_kernel_checkout[postfuncs] += "set_scmversion"
 bootimg_from_bundled_initramfs() {
     if [ ! -z "${INITRAMFS_IMAGE}" -a "${INITRAMFS_IMAGE_BUNDLE}" = "1" ]; then
         rm -f ${WORKDIR}/initrd
-	touch ${WORKDIR}/initrd
+        touch ${WORKDIR}/initrd
         for imageType in ${KERNEL_IMAGETYPES} ; do
-	    if [ "$imageType" = "fitImage" ] ; then
-	        continue
-	    fi
-	    initramfs_base_name=${imageType}-${INITRAMFS_NAME}
-	    initramfs_symlink_name=${imageType}-${INITRAMFS_LINK_NAME}
-	    ${STAGING_BINDIR_NATIVE}/tegra186-flash/mkbootimg \
-				    --kernel $deployDir/${initramfs_base_name}.bin \
-				    --ramdisk ${WORKDIR}/initrd \
-				    --output $deployDir/${initramfs_base_name}.cboot
-	    chmod 0644 $deployDir/${initramfs_base_name}.cboot
-	    ln -sf ${initramfs_base_name}.cboot $deployDir/${initramfs_symlink_name}.cboot
-	done
+            if [ "$imageType" = "fitImage" ] ; then
+                continue
+            fi
+            initramfs_base_name=${imageType}-${INITRAMFS_NAME}
+            initramfs_symlink_name=${imageType}-${INITRAMFS_LINK_NAME}
+            ${STAGING_BINDIR_NATIVE}/tegra186-flash/mkbootimg \
+                                    --kernel $deployDir/${initramfs_base_name}.bin \
+                                    --ramdisk ${WORKDIR}/initrd \
+                                    --output $deployDir/${initramfs_base_name}.cboot
+            chmod 0644 $deployDir/${initramfs_base_name}.cboot
+            ln -sf ${initramfs_base_name}.cboot $deployDir/${initramfs_symlink_name}.cboot
+        done
     fi
 }
 do_deploy_append_tegra186() {

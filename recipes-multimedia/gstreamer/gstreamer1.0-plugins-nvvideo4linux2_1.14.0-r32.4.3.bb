@@ -1,5 +1,4 @@
 DESCRIPTION = "NVIDIA v4l2 GStreamer plugin"
-HOMEPAGE = "https://developer.nvidia.com/embedded/linux-tegra"
 SECTION = "multimedia"
 LICENSE = "LGPLv2 & BSD-3-Clause & Proprietary"
 LIC_FILES_CHKSUM = "file://LICENSE.gst-nvvideo4linux2;md5=457fb5d7ae2d8cd8cabcc21789a37e5c \
@@ -12,6 +11,14 @@ TEGRA_SRC_SUBARCHIVE = "Linux_for_Tegra/source/public/gst-nvvideo4linux2_src.tbz
 require recipes-bsp/tegra-sources/tegra-sources-32.4.3.inc
 
 SRC_URI += "file://build-fixups.patch"
+SRC_URI += "file://0001-gstv4l2videodec-fix-assertion-in-allocation-query.patch"
+# https://gitlab.freedesktop.org/gstreamer/gst-plugins-good/-/merge_requests/649
+SRC_URI += "file://0001-v4l2videoenc-Fix-negotiation-caps-leak.patch"
+SRC_URI += "file://0002-v4l2allocator-Fix-data-offset-bytesused-size-validat.patch"
+SRC_URI += "file://0003-v4l2bufferpool-Avoid-set_flushing-warning.patch"
+# https://github.com/OE4T/meta-tegra/issues/486
+SRC_URI += "file://0001-gstv4l2videodec-use-ifdef-macro-for-consistency-with.patch"
+SRC_URI += "file://0002-gstv4l2videodec-check-if-we-have-a-pool-before-the-l.patch"
 
 DEPENDS = "gstreamer1.0 glib-2.0 gstreamer1.0-plugins-base virtual/egl tegra-libraries"
 

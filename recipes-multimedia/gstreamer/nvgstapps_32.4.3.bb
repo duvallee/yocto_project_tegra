@@ -1,5 +1,4 @@
 DESCRIPTION = "NVIDIA GStreamer applications"
-HOMEPAGE = "https://developer.nvidia.com/embedded/linux-tegra"
 SECTION = "multimedia"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://nvgst_sample_apps/nvgstcapture-1.0/nvgstcapture-1.0_README.txt;endline=21;md5=1e4984aeb6db6056fdde4cd672eb1f6f \
@@ -31,11 +30,11 @@ CFLAGS += "-Wall -Werror -DNVGST_TARGET_TEGRA"
 do_compile() {
     ${PACKAGECONFIG_CONFARGS}
     ${CC} ${CFLAGS} -o ${B}/nvgstcapture-1.0 ${S}/nvgst_sample_apps/nvgstcapture-1.0/nvgstcapture.c \
-        ${S}/nvgst_sample_apps/nvgstcapture-1.0/nvgst_x11_common.c \
+        ${S}/nvgst_sample_apps/nvgstcapture-1.0/nvgst_x11_common.c ${LDFLAGS} \
         $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-plugins-base-1.0 gstreamer-pbutils-1.0 x11 xext gstreamer-video-1.0) -ldl
     if [ "$WITH_NVGSTPLAYER" = "yes" ]; then
         ${CC} ${CFLAGS} -o ${B}/nvgstplayer-1.0 ${S}/nvgst_sample_apps/nvgstplayer-1.0/nvgstplayer.c \
-            ${S}/nvgst_sample_apps/nvgstplayer-1.0/nvgst_asound_common.c ${S}/nvgst_sample_apps/nvgstplayer-1.0/nvgst_x11_common.c \
+            ${S}/nvgst_sample_apps/nvgstplayer-1.0/nvgst_asound_common.c ${S}/nvgst_sample_apps/nvgstplayer-1.0/nvgst_x11_common.c ${LDFLAGS} \
             $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-plugins-base-1.0 gstreamer-pbutils-1.0 x11 xext gstreamer-video-1.0 alsa) -ldl
     fi
 }
